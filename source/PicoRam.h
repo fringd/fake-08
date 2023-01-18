@@ -130,7 +130,8 @@ struct musicChannel {
 	uint8_t length = 0;
 };
 
-struct sfxChannel {
+
+struct rawSfxChannel {
     int16_t sfxId = -1;
     float offset = 0;
     float phi = 0;
@@ -138,6 +139,16 @@ struct sfxChannel {
     bool is_music = false;
     int8_t prev_key = 0;
     float prev_vol = 0;
+    virtual rawSfxChannel *getChildChannel() {
+      return NULL;
+    }
+};
+
+struct sfxChannel : rawSfxChannel {
+    rawSfxChannel customInstrumentChannel;
+    virtual rawSfxChannel *getChildChannel() {
+      return &(this->customInstrumentChannel);
+    }
 };
 
 struct audioState_t {
@@ -291,4 +302,3 @@ struct PicoRam
         uint8_t data[0x10000];
     };
 };
-

@@ -137,4 +137,21 @@ TEST_CASE("audio class behaves as expected") {
         audio->api_music(3, 0, 0);
         CHECK_EQ(audioState->_sfxChannels[audioState->_musicChannel.master].sfxId, 2);
     }
+
+    SUBCASE("custom instruments"){
+        picoRam.sfx[0].speed = 16;
+        picoRam.sfx[0].notes[0].setVolume(7);
+        picoRam.sfx[0].notes[0].setKey(24);
+        picoRam.sfx[0].notes[0].setWaveform(1);
+        picoRam.sfx[0].notes[0].setCustom(true);
+        picoRam.sfx[1].notes[0].setVolume(7);
+        picoRam.sfx[1].notes[0].setKey(24);
+        sfxChannel s;
+        s.sfxId=0;
+        s.offset=0;
+        s.phi=0;
+        CHECK_EQ(s.getChildChannel()->sfxId, -1);
+        audio->getSampleForSfx(s);
+        CHECK_EQ(s.getChildChannel()->sfxId, 1);
+    }
 }

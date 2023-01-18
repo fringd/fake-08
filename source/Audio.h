@@ -90,10 +90,12 @@ class Audio {
     PicoRam* _memory;
     audioState_t _audioState;
 
-    int16_t getSampleForChannel(int channel);
-
     void set_music_pattern(int pattern);
     
+    public:
+    float getSampleForSfx(rawSfxChannel &channel, float freqShift = 1.0f);
+    int16_t getSampleForChannel(int channel);
+
     public:
     Audio(PicoRam* memory);
 
