@@ -396,7 +396,7 @@ float Audio::getSampleForSfx(rawSfxChannel &channel, float freqShift) {
 
 }
 
-float Audio::getSampleForNote(noteChannel channel, rawSfxChannel &parentChannel, note prev_note, float freqShift) {
+float Audio::getSampleForNote(noteChannel &channel, rawSfxChannel &parentChannel, note prev_note, float freqShift) {
     using std::max;
     rawSfxChannel *childChannel = parentChannel.getChildChannel();
     float offset = parentChannel.offset;

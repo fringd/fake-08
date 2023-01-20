@@ -95,7 +95,7 @@ class Audio {
     public:
     float getSampleForSfx(rawSfxChannel &channel, float freqShift = 1.0f);
     int16_t getSampleForChannel(int channel);
-    float getSampleForNote(noteChannel note_channel, rawSfxChannel &parentChannel, note prev_note, float freqShift);
+    float getSampleForNote(noteChannel &note_channel, rawSfxChannel &parentChannel, note prev_note, float freqShift);
 
     public:
     Audio(PicoRam* memory);
