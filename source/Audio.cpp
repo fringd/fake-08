@@ -351,11 +351,6 @@ float Audio::getSampleForSfx(rawSfxChannel &channel, float freqShift) {
     float crossfade = 0;
     if (offset_part < fade_duration) {
       crossfade = (fade_duration-offset_part)/fade_duration;
-      // TODO if previous note then crossfade that out now
-    }
-    else if (1.0f - offset_part < fade_duration) {
-      // volume *= (fade_duration - 1.0f + offset_part)/fade_duration;
-      // TODO only do this if not next note. otherwise depend on crossfade
     }
     
 
@@ -364,7 +359,13 @@ float Audio::getSampleForSfx(rawSfxChannel &channel, float freqShift) {
     // recursively inside a custom instrument.
     float waveform = this->getSampleForNote(channel.current_note, channel,  channel.prev_note.n, freqShift);
     if (crossfade > 0) {
-      //TODO get prev note and crossfade
+      float waveform = waveform * (1.0f-crossfade);
+      waveform+= crossfade * this->getSampleForNote(channel.prev_note, channel,  channel.prev_note.n, freqShift);
+    }
+    uint8_t len = sfx.loopRangeEnd == 0 ? 32 : sfx.loopRangeEnd;
+    bool lastNote = note_idx == len - 1;
+    if (lastNote && 1.0f - offset_part < fade_duration) {
+      waveform *= (fade_duration - 1.0f + offset_part)/fade_duration;
     }
 
     // Apply master music volume from fade in/out
