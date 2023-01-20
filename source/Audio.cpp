@@ -26,11 +26,11 @@ void Audio::resetAudioState() {
     for(int i = 0; i < 4; i++) {
         _audioState._sfxChannels[i].sfxId = -1;
         _audioState._sfxChannels[i].offset = 0;
-        _audioState._sfxChannels[i].phi = 0;
+        _audioState._sfxChannels[i].current_note.phi = 0;
         _audioState._sfxChannels[i].can_loop = true;
         _audioState._sfxChannels[i].is_music = false;
-        _audioState._sfxChannels[i].prev_key = 0;
-        _audioState._sfxChannels[i].prev_vol = 0;
+        _audioState._sfxChannels[i].prev_note.n.setKey(0);
+        _audioState._sfxChannels[i].prev_note.n.setVolume(0);
     }
     _audioState._musicChannel.count = 0;
     _audioState._musicChannel.pattern = -1;
@@ -104,15 +104,15 @@ void Audio::api_sfx(int sfx, int channel, int offset){
         // Play this sound!
         _audioState._sfxChannels[channel].sfxId = sfx;
         _audioState._sfxChannels[channel].offset = std::max(0.f, (float)offset);
-        _audioState._sfxChannels[channel].phi = 0.f;
+        _audioState._sfxChannels[channel].current_note.phi = 0.f;
         _audioState._sfxChannels[channel].can_loop = true;
         _audioState._sfxChannels[channel].is_music = false;
         // Playing an instrument starting with the note C-2 and the
         // slide effect causes no noticeable pitch variation in PICO-8,
         // so I assume this is the default value for “previous key”.
-        _audioState._sfxChannels[channel].prev_key = 24;
+        _audioState._sfxChannels[channel].prev_note.n.setKey(24);
         // There is no default value for “previous volume”.
-        _audioState._sfxChannels[channel].prev_vol = 0.f;
+        _audioState._sfxChannels[channel].prev_note.n.setVolume(0);
     }      
 }
 
@@ -210,12 +210,12 @@ void Audio::set_music_pattern(int pattern) {
 
         _audioState._sfxChannels[i].sfxId = n;
         _audioState._sfxChannels[i].offset = 0.f;
-        _audioState._sfxChannels[i].phi = 0.f;
+        _audioState._sfxChannels[i].current_note.phi = 0.f;
 	// if the master channel loops we'll never finish
         _audioState._sfxChannels[i].can_loop = i != _audioState._musicChannel.master;
         _audioState._sfxChannels[i].is_music = true;
-        _audioState._sfxChannels[i].prev_key = 24;
-        _audioState._sfxChannels[i].prev_vol = 0.f;
+        _audioState._sfxChannels[i].prev_note.n.setKey(24);
+        _audioState._sfxChannels[i].prev_note.n.setVolume(0);
     }
 }
 
@@ -319,12 +319,12 @@ float Audio::getSampleForSfx(rawSfxChannel &channel, float freqShift) {
     }
 
     int const note_idx = (int)floor(channel.offset);
+    channel.current_note.n=sfx.notes[note_idx];
     int const next_note_idx = (int)floor(next_offset);
 
-    uint8_t key = sfx.notes[note_idx].getKey();
-    float volume = sfx.notes[note_idx].getVolume() / 7.f;
-    float freq = key_to_freq(key);
 
+
+    /*
     if (volume == 0.f){
         //volume all the way off. return silence, but make sure to set stuff
         channel.offset = next_offset;
@@ -336,107 +336,43 @@ float Audio::getSampleForSfx(rawSfxChannel &channel, float freqShift) {
             }
         }
         else if (next_note_idx != note_idx){
-            channel.prev_key = sfx.notes[note_idx].getKey();
-            channel.prev_vol = sfx.notes[note_idx].getVolume() / 7.f;
+            channel.prev_note = sfx.notes[note_idx];
         }
 
         return 0;
     }
+    */
 
     // tiniest fade in/out to fix popping
     // the real version uses a crossfade it looks like
+    // 25 samples was estimated from looking at pcm out from pico-8
     float const fade_duration = offset_per_sample * 25;
     float offset_part = fmod(channel.offset, 1.f);
+    float crossfade = 0;
     if (offset_part < fade_duration) {
-      volume *= (fade_duration-offset_part)/fade_duration;
+      crossfade = (fade_duration-offset_part)/fade_duration;
+      // TODO if previous note then crossfade that out now
     }
     else if (1.0f - offset_part < fade_duration) {
-      volume *= (fade_duration - 1.0f + offset_part)/fade_duration;
+      // volume *= (fade_duration - 1.0f + offset_part)/fade_duration;
+      // TODO only do this if not next note. otherwise depend on crossfade
     }
     
-    //TODO: apply effects
-    int const fx = sfx.notes[note_idx].getEffect();
-
-    // Apply effect, if any
-    switch (fx)
-    {
-        case FX_NO_EFFECT:
-            break;
-        case FX_SLIDE:
-        {
-            float t = fmod(channel.offset, 1.f);
-            // From the documentation: “Slide to the next note and volume”,
-            // but it’s actually _from_ the _prev_ note and volume.
-            freq = lerp(key_to_freq(channel.prev_key), freq, t);
-            if (channel.prev_vol > 0.f)
-                volume = lerp(channel.prev_vol, volume, t);
-            break;
-        }
-        case FX_VIBRATO:
-        {
-            // 7.5f and 0.25f were found empirically by matching
-            // frequency graphs of PICO-8 instruments.
-            float t = fabs(fmod(7.5f * channel.offset / offset_per_second, 1.0f) - 0.5f) - 0.25f;
-            // Vibrato half a semi-tone, so multiply by pow(2,1/12)
-            freq = lerp(freq, freq * 1.059463094359f, t);
-            break;
-        }
-        case FX_DROP:
-            freq *= 1.f - fmod(channel.offset, 1.f);
-            break;
-        case FX_FADE_IN:
-            volume *= fmod(channel.offset, 1.f);
-            break;
-        case FX_FADE_OUT:
-            volume *= 1.f - fmod(channel.offset, 1.f);
-            break;
-        case FX_ARP_FAST:
-        case FX_ARP_SLOW:
-        {
-            // From the documentation:
-            // “6 arpeggio fast  //  Iterate over groups of 4 notes at speed of 4
-            //  7 arpeggio slow  //  Iterate over groups of 4 notes at speed of 8”
-            // “If the SFX speed is <= 8, arpeggio speeds are halved to 2, 4”
-            int const m = (speed <= 8 ? 32 : 16) / (fx == FX_ARP_FAST ? 4 : 8);
-            int const n = (int)(m * 7.5f * channel.offset / offset_per_second);
-            int const arp_note = (note_idx & ~3) | (n & 3);
-            freq = key_to_freq(sfx.notes[arp_note].getKey());
-            break;
-        }
-    }
-    freq*=freqShift;
 
     bool custom = (bool) sfx.notes[note_idx].getCustom();
     // it seems we're not allowed to play custom instruments
     // recursively inside a custom instrument.
-    float waveform;
-    
-    if (custom && channel.getChildChannel() != NULL ) {
-      rawSfxChannel *childChannel = channel.getChildChannel();
-      if (childChannel->sfxId == -1) {
-        // initialize child channel
-        childChannel->sfxId = sfx.notes[note_idx].getWaveform();
-        childChannel->offset = 0;
-        childChannel->phi = 0;
-        childChannel->can_loop = true;
-        // don't want to double lower volume for music subchannel
-        childChannel->is_music = false;
-        childChannel->prev_key = 0;
-        childChannel->prev_vol = 0;
-      }
-      waveform = this->getSampleForSfx(*childChannel, freq/C2_FREQ);
-    } else {
-      // Play note
-      waveform = z8::synth::waveform(sfx.notes[note_idx].getWaveform(), channel.phi);
+    float waveform = this->getSampleForNote(channel.current_note, channel,  channel.prev_note.n, freqShift);
+    if (crossfade > 0) {
+      //TODO get prev note and crossfade
     }
 
     // Apply master music volume from fade in/out
     // FIXME: check whether this should be done after distortion
     if (channel.is_music) {
-        volume *= _audioState._musicChannel.volume;
+        waveform *= _audioState._musicChannel.volume;
     }
 
-    channel.phi = channel.phi + freq / samples_per_second;
 
     channel.offset = next_offset;
 
@@ -444,8 +380,9 @@ float Audio::getSampleForSfx(rawSfxChannel &channel, float freqShift) {
         channel.sfxId = -1;
     }
     else if (next_note_idx != note_idx){
-        channel.prev_key = sfx.notes[note_idx].getKey();
-        channel.prev_vol = sfx.notes[note_idx].getVolume() / 7.f;
+        channel.prev_note = channel.current_note; //sfx.notes[note_idx].getKey();
+        channel.current_note.n = sfx.notes[next_note_idx];
+        channel.current_note.phi = 0;
         if (custom) {
             if (!sfx.notes[next_note_idx].getCustom() ||
                 sfx.notes[next_note_idx].getKey() != sfx.notes[note_idx].getKey() ||
@@ -455,9 +392,97 @@ float Audio::getSampleForSfx(rawSfxChannel &channel, float freqShift) {
             }
         }
     }
-    return volume * waveform;
+    return waveform;
 
 }
+
+float Audio::getSampleForNote(noteChannel channel, rawSfxChannel &parentChannel, note prev_note, float freqShift) {
+    using std::max;
+    rawSfxChannel *childChannel = parentChannel.getChildChannel();
+    float offset = parentChannel.offset;
+    int const samples_per_second = 22050;
+    //TODO: apply effects
+    int const fx = channel.n.getEffect();
+    uint8_t key = channel.n.getKey();
+    float volume = channel.n.getVolume() / 7.f;
+    float freq = key_to_freq(key);
+
+    struct sfx const &sfx = _memory->sfx[parentChannel.sfxId];
+
+    // Speed must be 1—255 otherwise the SFX is invalid
+    int const speed = max(1, (int)sfx.speed);
+    float const offset_per_second = 22050.f / (183.f * speed);
+    int const note_idx = (int)floor(offset);
+
+    // Apply effect, if any
+    switch (fx)
+    {
+        case FX_NO_EFFECT:
+            break;
+        case FX_SLIDE:
+        {
+            float t = fmod(offset, 1.f);
+            // From the documentation: “Slide to the next note and volume”,
+            // but it’s actually _from_ the _prev_ note and volume.
+            freq = lerp(key_to_freq(prev_note.getKey()), freq, t);
+            if (prev_note.getVolume() > 0)
+                volume = lerp(prev_note.getVolume() / 7.0f, volume, t);
+            break;
+        }
+        case FX_VIBRATO:
+        {
+            // 7.5f and 0.25f were found empirically by matching
+            // frequency graphs of PICO-8 instruments.
+            float t = fabs(fmod(7.5f * offset / offset_per_second, 1.0f) - 0.5f) - 0.25f;
+            // Vibrato half a semi-tone, so multiply by pow(2,1/12)
+            freq = lerp(freq, freq * 1.059463094359f, t);
+            break;
+        }
+        case FX_DROP:
+            freq *= 1.f - fmod(offset, 1.f);
+            break;
+        case FX_FADE_IN:
+            volume *= fmod(offset, 1.f);
+            break;
+        case FX_FADE_OUT:
+            volume *= 1.f - fmod(offset, 1.f);
+            break;
+        case FX_ARP_FAST:
+        case FX_ARP_SLOW:
+        {
+            // From the documentation:
+            // “6 arpeggio fast  //  Iterate over groups of 4 notes at speed of 4
+            //  7 arpeggio slow  //  Iterate over groups of 4 notes at speed of 8”
+            // “If the SFX speed is <= 8, arpeggio speeds are halved to 2, 4”
+            int const m = (speed <= 8 ? 32 : 16) / (fx == FX_ARP_FAST ? 4 : 8);
+            int const n = (int)(m * 7.5f * offset / offset_per_second);
+            int const arp_note = (note_idx & ~3) | (n & 3);
+            freq = key_to_freq(sfx.notes[arp_note].getKey());
+            break;
+        }
+    }
+    freq*=freqShift;
+    channel.phi = channel.phi + freq / samples_per_second;
+    
+    bool custom = (bool) channel.n.getCustom();
+    if (custom && childChannel != NULL ) {
+      if (childChannel->sfxId == -1) {
+        // initialize child channel
+        childChannel->sfxId = channel.n.getWaveform();
+        childChannel->offset = 0;
+        childChannel->current_note.phi = 0;
+        childChannel->can_loop = true;
+        // don't want to double lower volume for music subchannel
+        childChannel->is_music = false;
+        childChannel->prev_note.n.setKey(0);
+        childChannel->prev_note.n.setVolume(0);
+      }
+      return this->getSampleForSfx(*childChannel, freq/C2_FREQ);
+    } else {
+      return z8::synth::waveform(channel.n.getWaveform(), channel.phi);
+    }
+}
+
 
 //adapted from zepto8 sfx.cpp (wtfpl license)
 int16_t Audio::getSampleForChannel(int channel){

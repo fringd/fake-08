@@ -149,7 +149,7 @@ TEST_CASE("audio class behaves as expected") {
         sfxChannel s;
         s.sfxId=0;
         s.offset=0;
-        s.phi=0;
+        s.current_note.phi=0;
         CHECK_EQ(s.getChildChannel()->sfxId, -1);
         audio->getSampleForSfx(s);
         CHECK_EQ(s.getChildChannel()->sfxId, 1);
