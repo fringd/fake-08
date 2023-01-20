@@ -477,9 +477,9 @@ float Audio::getSampleForNote(noteChannel &channel, rawSfxChannel &parentChannel
         childChannel->prev_note.n.setKey(0);
         childChannel->prev_note.n.setVolume(0);
       }
-      return this->getSampleForSfx(*childChannel, freq/C2_FREQ);
+      return volume * this->getSampleForSfx(*childChannel, freq/C2_FREQ);
     } else {
-      return z8::synth::waveform(channel.n.getWaveform(), channel.phi);
+      return volume * z8::synth::waveform(channel.n.getWaveform(), channel.phi);
     }
 }
 
