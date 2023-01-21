@@ -1,6 +1,7 @@
 #include "doctest.h"
 #include "../source/Audio.h"
 #include "../source/PicoRam.h"
+#include <iostream>
 
 TEST_CASE("audio class behaves as expected") {
     //general setup
@@ -139,6 +140,7 @@ TEST_CASE("audio class behaves as expected") {
     }
 
     SUBCASE("custom instruments"){
+      using std::cout;
         picoRam.sfx[0].speed = 16;
         picoRam.sfx[0].notes[0].setVolume(7);
         picoRam.sfx[0].notes[0].setKey(24);
@@ -146,6 +148,7 @@ TEST_CASE("audio class behaves as expected") {
         picoRam.sfx[0].notes[0].setCustom(true);
         picoRam.sfx[1].notes[0].setVolume(7);
         picoRam.sfx[1].notes[0].setKey(24);
+        picoRam.sfx[1].speed = 16;
         sfxChannel s;
         s.sfxId=0;
         s.offset=0;
@@ -153,5 +156,56 @@ TEST_CASE("audio class behaves as expected") {
         CHECK_EQ(s.getChildChannel()->sfxId, -1);
         audio->getSampleForSfx(s);
         CHECK_EQ(s.getChildChannel()->sfxId, 1);
+        for (int i = 0; i < 100; i++) {
+          audio->getSampleForSfx(s);
+          std::cout << "sfxid: " << s.getChildChannel()->sfxId << "\n";
+          std::cout << "parent offset" << s.offset << "\n";
+          std::cout << "child offset" << s.getChildChannel()->offset << "\n";
+          note n;
+          std::cout << "note data: " << (int) s.getChildChannel()->current_note.n.data[0] << (int) s.getChildChannel()->current_note.n.data[1] << "\n";
+          std::cout << "phi: " << s.getChildChannel()->current_note.phi << "\n";
+        }
+        for (int i = 0; i < 100; i++) {
+          cout << "parent" << audio->getSampleForSfx(s) << "\n";
+        }
+        rawSfxChannel childChannel = *s.getChildChannel();
+        for (int i = 0; i < 100; i++) {
+          cout << "child" << audio->getSampleForSfx(childChannel) << "\n";
+        }
+    }
+
+    SUBCASE("drop effect"){
+      using std::cout;
+        picoRam.sfx[0].speed = 16;
+        picoRam.sfx[0].notes[0].setVolume(7);
+        picoRam.sfx[0].notes[0].setKey(24);
+        picoRam.sfx[0].notes[0].setWaveform(1);
+        picoRam.sfx[0].notes[0].setCustom(true);
+        picoRam.sfx[1].notes[0].setVolume(7);
+        picoRam.sfx[1].notes[0].setKey(24);
+        picoRam.sfx[1].speed = 16;
+        sfxChannel s;
+        s.sfxId=0;
+        s.offset=0;
+        s.current_note.phi=0;
+        CHECK_EQ(s.getChildChannel()->sfxId, -1);
+        audio->getSampleForSfx(s);
+        CHECK_EQ(s.getChildChannel()->sfxId, 1);
+        for (int i = 0; i < 100; i++) {
+          audio->getSampleForSfx(s);
+          std::cout << "sfxid: " << s.getChildChannel()->sfxId << "\n";
+          std::cout << "parent offset" << s.offset << "\n";
+          std::cout << "child offset" << s.getChildChannel()->offset << "\n";
+          note n;
+          std::cout << "note data: " << (int) s.getChildChannel()->current_note.n.data[0] << (int) s.getChildChannel()->current_note.n.data[1] << "\n";
+          std::cout << "phi: " << s.getChildChannel()->current_note.phi << "\n";
+        }
+        for (int i = 0; i < 100; i++) {
+          cout << "parent" << audio->getSampleForSfx(s) << "\n";
+        }
+        rawSfxChannel childChannel = *s.getChildChannel();
+        for (int i = 0; i < 100; i++) {
+          cout << "child" << audio->getSampleForSfx(childChannel) << "\n";
+        }
     }
 }
