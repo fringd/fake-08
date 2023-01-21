@@ -468,9 +468,9 @@ float Audio::getSampleForNote(noteChannel &channel, rawSfxChannel &parentChannel
         }
     }
     freq*=freqShift;
-    channel.phi = channel.phi + freq / samples_per_second;
     
     bool custom = (bool) channel.n.getCustom() && childChannel != NULL;
+    float waveform;
     if (custom) {
       if (childChannel->sfxId == -1) {
         // initialize child channel
@@ -483,10 +483,12 @@ float Audio::getSampleForNote(noteChannel &channel, rawSfxChannel &parentChannel
         childChannel->prev_note.n.setKey(0);
         childChannel->prev_note.n.setVolume(0);
       }
-      return volume * this->getSampleForSfx(*childChannel, freq/C2_FREQ);
+      waveform = volume * this->getSampleForSfx(*childChannel, freq/C2_FREQ);
     } else {
-      return volume * z8::synth::waveform(channel.n.getWaveform(), channel.phi);
+      waveform = volume * z8::synth::waveform(channel.n.getWaveform(), channel.phi);
     }
+    channel.phi = channel.phi + freq / samples_per_second;
+    return waveform;
 }
 
 
