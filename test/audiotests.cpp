@@ -20,14 +20,14 @@ TEST_CASE("audio class behaves as expected") {
         sfxChannel s;
         s.sfxId=0;
         s.offset=0;
-        s.phi=0;
+        s.current_note.phi=0;
         for (int i=1; i<100; i++) {
           audio->getSampleForSfx(s);
         }
+        std::cout << audio->getSampleForSfx(s) << audio->getSampleForSfx(s) << audio->getSampleForSfx(s);
         CHECK(audio->getSampleForSfx(s) - -0.327792 < 0.000001f);
         CHECK(audio->getSampleForSfx(s) - -0.315055 < 0.000001f);
         CHECK(audio->getSampleForSfx(s) - -0.302322 < 0.000001f);
-        std::cout << audio->getSampleForSfx(s) << audio->getSampleForSfx(s) << audio->getSampleForSfx(s);
     }
 
     SUBCASE("Audio constructor sets sfx channels to -1") {
@@ -176,6 +176,7 @@ TEST_CASE("audio class behaves as expected") {
         CHECK_EQ(s.getChildChannel()->sfxId, -1);
         audio->getSampleForSfx(s);
         CHECK_EQ(s.getChildChannel()->sfxId, 1);
+        /*
         for (int i = 0; i < 100; i++) {
           audio->getSampleForSfx(s);
           std::cout << "sfxid: " << s.getChildChannel()->sfxId << "\n";
@@ -192,6 +193,7 @@ TEST_CASE("audio class behaves as expected") {
         for (int i = 0; i < 100; i++) {
           cout << "child" << audio->getSampleForSfx(childChannel) << "\n";
         }
+        */
     }
 
     SUBCASE("drop effect"){
@@ -211,6 +213,7 @@ TEST_CASE("audio class behaves as expected") {
         CHECK_EQ(s.getChildChannel()->sfxId, -1);
         audio->getSampleForSfx(s);
         CHECK_EQ(s.getChildChannel()->sfxId, 1);
+        /*
         for (int i = 0; i < 100; i++) {
           audio->getSampleForSfx(s);
           std::cout << "sfxid: " << s.getChildChannel()->sfxId << "\n";
@@ -227,5 +230,6 @@ TEST_CASE("audio class behaves as expected") {
         for (int i = 0; i < 100; i++) {
           cout << "child" << audio->getSampleForSfx(childChannel) << "\n";
         }
+        */
     }
 }
