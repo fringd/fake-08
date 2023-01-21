@@ -359,7 +359,7 @@ float Audio::getSampleForSfx(rawSfxChannel &channel, float freqShift) {
     // recursively inside a custom instrument.
     float waveform = this->getSampleForNote(channel.current_note, channel,  channel.prev_note.n, freqShift);
     if (crossfade > 0) {
-      float waveform = waveform * (1.0f-crossfade);
+      waveform *= (1.0f-crossfade);
       waveform+= crossfade * this->getSampleForNote(channel.prev_note, channel,  channel.prev_note.n, freqShift);
     }
     uint8_t len = sfx.loopRangeEnd == 0 ? 32 : sfx.loopRangeEnd;
