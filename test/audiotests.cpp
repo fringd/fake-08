@@ -24,10 +24,33 @@ TEST_CASE("audio class behaves as expected") {
         for (int i=1; i<100; i++) {
           audio->getSampleForSfx(s);
         }
-        std::cout << audio->getSampleForSfx(s) << audio->getSampleForSfx(s) << audio->getSampleForSfx(s);
         CHECK(audio->getSampleForSfx(s) - -0.327792 < 0.000001f);
         CHECK(audio->getSampleForSfx(s) - -0.315055 < 0.000001f);
         CHECK(audio->getSampleForSfx(s) - -0.302322 < 0.000001f);
+    }
+
+    SUBCASE("no effect"){
+      using std::cout;
+        picoRam.sfx[0].speed = 16;
+        picoRam.sfx[0].notes[0].setVolume(7);
+        picoRam.sfx[0].notes[0].setKey(24);
+        picoRam.sfx[0].notes[0].setWaveform(1);
+        sfxChannel s;
+        s.sfxId=0;
+        s.offset=0;
+        s.current_note.phi=0;
+        for (int i=1; i<100; i++) {
+          audio->getSampleForSfx(s);
+        }
+
+        CHECK_EQ(s.current_note.n.getKey(), 24);
+        CHECK_EQ(s.current_note.n.getVolume(), 7);
+        CHECK_EQ(s.current_note.n.getWaveform(), 1);
+        CHECK_EQ(s.current_note.n.getEffect(), 0);
+
+        CHECK(audio->getSampleForSfx(s) - -0.30595 < 0.000001f);
+        CHECK(audio->getSampleForSfx(s) - -0.292767 < 0.000001f);
+        CHECK(audio->getSampleForSfx(s) - -0.279583 < 0.000001f);
     }
 
     SUBCASE("Audio constructor sets sfx channels to -1") {
