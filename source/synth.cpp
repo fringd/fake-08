@@ -18,6 +18,12 @@
 
 //temp for printf debugging
 //#include <stdio.h>
+//This answer is useful
+
+int CTZ(unsigned x) {
+    if (x == 0) return 8;
+    return log2 (x & -x);  
+}
 
 namespace z8
 {
@@ -36,6 +42,10 @@ float synth::waveform(int instrument, float advance)
 
     float t = fmod(advance, 1.f);
     float ret = 0.f;
+
+    // state for voss-mccartney pink noise
+    unsigned long *dice, counter, prevrand, newrand, seed, total, ifval, k;
+
 
     // Multipliers were measured from PICO-8 WAV exports. Waveforms are
     // inferred from those exports by guessing what the original formulas
@@ -63,6 +73,46 @@ float synth::waveform(int instrument, float advance)
             return ret / 9.f;
         case INST_NOISE:
         {
+          float *out;
+
+          int nsmps=10;
+
+          for (int i=0; i<nsmps; ++i) {
+              k = CTZ(counter);         // count trailing zeroes
+              k = k & 15;
+
+              // get previous value of this octave
+              prevrand = dice[k];
+
+              // generate a new random value
+              seed = 1664525 * seed + 1013904223;
+              // shift to move into mantissa bitfield divided by 16
+              newrand = seed >> 13;
+
+              // store new value
+              dice[k] = newrand;
+
+              // update total
+              total += (newrand - prevrand);
+
+              // generate a new random value for the top octave
+              seed = 1664525 * seed + 1013904223;
+              // shift to move into mantissa bitfield divided by 16
+              newrand = seed >> 13;
+
+              // there is a theoretical chance that total + newrand could overflow
+              // the mantissa bitfield, but it is *extremely* unlikely due to total
+              // being a a gaussian distributed value.
+
+              // convert to floating point value from 2.0 to 4.0 by masking
+              ifval = (total + newrand) | 0x40000000;
+
+              // subtract 3 to get in range from -1 to +1 and output
+              *++out = ((*(float*)&ifval) - 3.0f);
+
+              // update counter
+              counter ++;
+          }
             // Spectral analysis indicates this is some kind of brown noise,
             // but losing almost 10dB per octave. I thought using Perlin noise
             // would be fun, but it’s definitely not accurate.
