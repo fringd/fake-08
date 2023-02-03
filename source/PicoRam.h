@@ -145,12 +145,24 @@ struct rawSfxChannel {
     virtual rawSfxChannel *getChildChannel() {
       return NULL;
     }
+    virtual rawSfxChannel *getPrevChildChannel() {
+      return NULL;
+    }
+    virtual void rotateChannels() {
+    }
 };
 
 struct sfxChannel : rawSfxChannel {
     rawSfxChannel customInstrumentChannel;
+    rawSfxChannel prevInstrumentChannel;
     virtual rawSfxChannel *getChildChannel() {
       return &(this->customInstrumentChannel);
+    }
+    virtual rawSfxChannel *getPrevChildChannel() {
+      return &(this->prevInstrumentChannel);
+    }
+    virtual void rotateChannels() {
+      prevInstrumentChannel = customInstrumentChannel;
     }
 };
 

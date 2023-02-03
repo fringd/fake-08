@@ -357,11 +357,11 @@ float Audio::getSampleForSfx(rawSfxChannel &channel, float freqShift) {
     bool custom = (bool) sfx.notes[note_idx].getCustom() && channel.getChildChannel() != NULL; 
     // it seems we're not allowed to play custom instruments
     // recursively inside a custom instrument.
-    float waveform = this->getSampleForNote(channel.current_note, channel,  channel.prev_note.n, freqShift, false);
+    float waveform = this->getSampleForNote(channel.current_note, channel, channel.getChildChannel(), channel.prev_note.n, freqShift, false);
     if (crossfade > 0) {
       waveform *= (1.0f-crossfade);
       note dummyNote;
-      waveform+= crossfade * this->getSampleForNote(channel.prev_note, channel, dummyNote, freqShift, true);
+      waveform+= crossfade * this->getSampleForNote(channel.prev_note, channel, channel.getPrevChildChannel(), dummyNote, freqShift, true);
     }
     uint8_t len = sfx.loopRangeEnd == 0 ? 32 : sfx.loopRangeEnd;
     bool lastNote = note_idx == len - 1;
@@ -386,12 +386,13 @@ float Audio::getSampleForSfx(rawSfxChannel &channel, float freqShift) {
     else if (next_note_idx != note_idx){
         channel.prev_note = channel.current_note; //sfx.notes[note_idx].getKey();
         channel.current_note.n = sfx.notes[next_note_idx];
-        channel.current_note.phi = 0;
+        channel.current_note.phi = channel.prev_note.phi;
         if (custom) {
             if (!sfx.notes[next_note_idx].getCustom() ||
                 sfx.notes[next_note_idx].getKey() != sfx.notes[note_idx].getKey() ||
                 sfx.notes[next_note_idx].getWaveform() != sfx.notes[note_idx].getWaveform()
               ) {
+                channel.rotateChannels();
                 channel.getChildChannel()->sfxId = -1;
             }
         }
@@ -400,9 +401,8 @@ float Audio::getSampleForSfx(rawSfxChannel &channel, float freqShift) {
 
 }
 
-float Audio::getSampleForNote(noteChannel &channel, rawSfxChannel &parentChannel, note prev_note, float freqShift, bool forceRemainder) {
+float Audio::getSampleForNote(noteChannel &channel, rawSfxChannel &parentChannel, rawSfxChannel *childChannel, note prev_note, float freqShift, bool forceRemainder) {
     using std::max;
-    rawSfxChannel *childChannel = parentChannel.getChildChannel();
     float offset = parentChannel.offset;
     int const samples_per_second = 22050;
     //TODO: apply effects
